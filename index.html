@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mount Whitney Trail Explorer</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="glow-bg"></div>
+    <div class="glow-bg-2"></div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading trail data...</div>
+    </div>
+
+    <!-- Header -->
+    <header>
+        <div class="brand">
+            <div class="brand-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M4 22L12 2L20 22H4Z" stroke-linejoin="round"/>
+                    <path d="M9 13.5L12 9.5L15 13.5H9Z" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div class="brand-title">
+                <h1>Mount Whitney Trail</h1>
+                <p>Sierra Nevada, California • Highest Peak in the Contiguous US</p>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <!-- Prep Guide Button -->
+            <button class="toggle-btn" id="prep-btn" style="background: rgba(255, 255, 255, 0.05); color: var(--text-primary); border: 1px solid var(--border-card); margin-right: 0.75rem; display: flex; align-items: center; gap: 0.35rem;">
+                📋 Prep Guide
+            </button>
+            <!-- Units Selector -->
+            <div class="toggle-group" id="unit-toggle">
+                <button class="toggle-btn active" data-unit="imperial">Imperial</button>
+                <button class="toggle-btn" data-unit="metric">Metric</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard Workspace -->
+    <main class="dashboard-container">
+        <!-- Sidebar Panel -->
+        <aside class="sidebar">
+            
+            <!-- Trail Summary & Metrics -->
+            <section class="glass-card">
+                <div class="card-title">
+                    <span>TRAIL STATISTICS</span>
+                    <span class="card-title-icon">📊</span>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Distance</span>
+                        <div class="stat-val"><span id="stat-distance">--</span> <span class="stat-unit" id="unit-dist">mi</span></div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Elev. Gain</span>
+                        <div class="stat-val"><span id="stat-elev-gain">--</span> <span class="stat-unit" id="unit-elev-gain">ft</span></div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Summit Elev.</span>
+                        <div class="stat-val"><span id="stat-max-elev">--</span> <span class="stat-unit" id="unit-elev-max">ft</span></div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Max Slope</span>
+                        <div class="stat-val"><span id="stat-max-slope">--</span> <span class="stat-unit">°</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Map Theme Selector -->
+            <section class="glass-card">
+                <div class="card-title">
+                    <span>MAP TOPOGRAPHY</span>
+                    <span class="card-title-icon">🗺️</span>
+                </div>
+                <button class="map-theme-btn active" data-theme="topo">
+                    <span id="topo-btn-text">⛰️ Topo (Feet)</span>
+                    <span>✓</span>
+                </button>
+                <button class="map-theme-btn" data-theme="satellite">
+                    <span>🛰️ Satellite Imaging</span>
+                    <span></span>
+                </button>
+                <button class="map-theme-btn" data-theme="street">
+                    <span>🛣️ Open Street Map</span>
+                    <span></span>
+                </button>
+            </section>
+
+            <!-- Interactive Waypoints List -->
+            <section class="glass-card" style="flex: 1; display: flex; flex-direction: column;">
+                <div class="card-title" style="margin-bottom: 0.75rem;">
+                    <span>KEY WAYPOINTS</span>
+                    <span class="card-title-icon">📍</span>
+                </div>
+                <div class="checkpoint-list" id="checkpoint-container">
+                    <!-- Waypoints will be dynamically generated here -->
+                </div>
+            </section>
+        </aside>
+
+        <!-- Main Map & Chart Area -->
+        <section class="main-content">
+            <!-- Leaflet Interactive Map -->
+            <div id="map-container">
+                <!-- Hover Info Box overlaying the map -->
+                <div id="hover-info-box" class="hover-info-box">
+                    <div class="hover-info-item">
+                        <span class="hover-info-label">Distance</span>
+                        <span class="hover-info-value" id="hover-dist">--</span>
+                    </div>
+                    <div class="hover-info-item">
+                        <span class="hover-info-label">Elevation</span>
+                        <span class="hover-info-value" id="hover-elev">--</span>
+                    </div>
+                    <div class="hover-info-item">
+                        <span class="hover-info-label">Slope</span>
+                        <span class="hover-info-value" id="hover-slope">--</span>
+                    </div>
+                    <div class="hover-info-item">
+                        <span class="hover-info-label">Landcover</span>
+                        <span class="hover-info-value" id="hover-landcover">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Elevation Profile Panel -->
+            <div class="chart-panel">
+                <div class="chart-header">
+                    <div class="chart-title">
+                        <span>📈 ELEVATION PROFILE & SLOPE GRADIENT</span>
+                    </div>
+                    <div class="chart-legend">
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: rgba(16, 185, 129, 0.2); border: 2px solid #10b981;"></span>
+                            <span>Elevation Profile</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="elevationChart"></canvas>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Prep Guide Modal Dialog -->
+    <dialog id="prep-dialog" class="glass-card modal-dialog">
+        <div class="dialog-header">
+            <h2>📋 Mount Whitney Hike Preparation Guide</h2>
+            <button id="close-dialog-btn" class="close-btn">&times;</button>
+        </div>
+        <div class="dialog-content">
+            <section class="prep-section">
+                <h3>📅 Trip Details (September 7)</h3>
+                <p style="font-size: 0.8rem; line-height: 1.5; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                    <strong>Date:</strong> Monday, September 7 (Labor Day Holiday)<br>
+                    <strong>Group Size:</strong> 7 Guests (Naveena Ganta, Naresh Gadepalli, RajaSekharReddy DontiReddy, Sreedivya, Prasad Sunkari, Sreelakshmi Pothana, Raj Yeruva).
+                </p>
+                <div class="safety-alert" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); color: var(--text-primary);">
+                    <strong>Permits:</strong> Day-use permits are mandatory and must be carried at all times. Ensure your organizer, <strong>Naveena Ganta</strong>, has printed copies.
+                </div>
+            </section>
+
+            <section class="prep-section">
+                <h3>🎒 Packing & Gear Checklist</h3>
+                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Check off items as you pack them. Your list is automatically saved!</p>
+                <div class="checklist-grid" id="prep-checklist">
+                    <label class="check-item"><input type="checkbox" id="item-headlamp"> Headlamp & Extra Batteries</label>
+                    <label class="check-item"><input type="checkbox" id="item-filter"> Water Filter (Last water at Trail Camp!)</label>
+                    <label class="check-item"><input type="checkbox" id="item-water"> 3-4 Liters of Water / Electrolytes</label>
+                    <label class="check-item"><input type="checkbox" id="item-puffy"> Insulating Puffy Jacket</label>
+                    <label class="check-item"><input type="checkbox" id="item-gloves"> Warm Gloves & Beanie</label>
+                    <label class="check-item"><input type="checkbox" id="item-shell"> Windproof / Rain Shell</label>
+                    <label class="check-item"><input type="checkbox" id="item-calories"> High-carb Food / Snacks (3,000+ kcal)</label>
+                    <label class="check-item"><input type="checkbox" id="item-sun"> Polarized Sunglasses & Sunscreen</label>
+                    <label class="check-item"><input type="checkbox" id="item-wag"> WAG Bag (Required waste pack-out)</label>
+                    <label class="check-item"><input type="checkbox" id="item-poles"> Trekking Poles (highly recommended)</label>
+                    <label class="check-item"><input type="checkbox" id="item-firstaid"> First Aid / Moleskin / Ibuprofen</label>
+                    <label class="check-item"><input type="checkbox" id="item-id"> Photo ID & Signed Permit Copy</label>
+                </div>
+            </section>
+
+            <section class="prep-section">
+                <h3>🤢 Altitude Sickness & Group Safety</h3>
+                <div class="safety-alert">
+                    <strong>Warning (Altitude AMS):</strong> Whitney summit is at 14,485 ft (4,415 m). Acclimatize by staying at Lone Pine or Whitney Portal (8,300 ft) the night before. If a group member experiences severe headaches, vomiting, or dizziness, <strong>descend immediately</strong> with a partner. Do not split up!
+                </div>
+            </section>
+
+            <section class="prep-section">
+                <h3>⏰ Target Ascent Schedule</h3>
+                <ul class="schedule-list">
+                    <li><span>🏁 Whitney Portal (Start)</span><span><strong>2:00 AM - 3:00 AM</strong> (0.0 mi / 8,343 ft)</span></li>
+                    <li><span>🌲 Lone Pine Lake Jct</span><span><strong>+ 1.5 hrs</strong> (2.3 mi / 9,902 ft)</span></li>
+                    <li><span>⛺ Outpost Camp</span><span><strong>+ 2.2 hrs</strong> (3.4 mi / 10,407 ft)</span></li>
+                    <li><span>⛺ Trail Camp (Last Water Filter)</span><span><strong>+ 4.0 hrs</strong> (5.2 mi / 12,001 ft)</span></li>
+                    <li><span>⛰️ Trail Crest (After 99 Switchbacks)</span><span><strong>+ 6.0 hrs</strong> (6.8 mi / 13,596 ft)</span></li>
+                    <li><span>🏔️ Mt Whitney Summit (Turnaround)</span><span><strong>+ 7.5 to 9.0 hrs</strong> (8.8 mi / 14,485 ft)</span></li>
+                </ul>
+            </section>
+        </div>
+    </dialog>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PapaParse for parsing CSV files -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <!-- Main application logic -->
+    <script src="app.js"></script>
+</body>
+</html>
